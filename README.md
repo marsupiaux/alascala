@@ -43,8 +43,26 @@ Add new functions with the shortcut:
 ```scala
 alias
 ```
-& repackage the changes for usage on restart with:
+
+& repackage the changes for usage when you start a new shell with:
 
 ```scala
 packit
 ```
+
+You can load a script to setup the environment(I just added that script into the project's home directory):
+
+```scala
+:load env.scala
+```
+
+Then use commands that emulate bash:
+```scala
+cd("..")
+```
+
+## ToDo
+
+1. Next we add the environment to some of the aliases.
+2. I still need to find a way to cd "path" w/o the braces ...?
+
