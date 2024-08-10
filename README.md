@@ -32,10 +32,11 @@ ln -s /path/of/this/project/s/jar .jar
 
 ## Usage
 
-When the shell starts up you can import the functions in Alias:
+When the shell starts up you can import the functions in Alias & Environment:
 
 ```scala
 import alascala.Alias._
+import alascala.Environment._
 ```
 
 Add new functions with the shortcut:
@@ -50,19 +51,16 @@ alias
 packit
 ```
 
-You can load a script to setup the environment(I just added that script into the project's home directory):
-
-```scala
-:load env.scala
-```
-
 Then use commands that emulate bash:
 ```scala
 cd("..")
 ```
 
+and then the aliases will use that environment:
+```scala
+v //opens the directory opened by the cd command in nvim
+```
+
 ## ToDo
 
-1. Next we add the environment to some of the aliases.
-2. I still need to find a way to cd "path" w/o the braces ...?
-
+1. clean up reduntant parts of the path

@@ -4,7 +4,7 @@ package alascala
 //implicit creation from "some/path" / -> Path("some/path")
 
 class Path(home:String):
-  var wd = home.trim().stripSuffix("/")
+  private var wd = home.trim().stripSuffix("/")
   def pwd = wd
   infix def / = 
     Path(home.trim)
@@ -33,7 +33,7 @@ object Path:
     if s"ls $d".! == 0 then
       Some(new Path(d))
     else 
-      println(s"${d.str} not found by system ls call")
+      println(s"$d/ not found by system ls call")
       None
   /*given Conversion[String, Path] = s => 
     Path(s) match
@@ -64,8 +64,8 @@ class Environment(home:Path):
 object Environment:
   def apply(s:String = "/"):Environment = Path(s) match
     case Some(p) => new Environment(p)
-    case None => 
-      import scala.sys.process.{ Process, stringToProcess }
-      Environment("pwd".!!)
+    case None => Environment()
+  def ^(using Environment) = pwd
+  def pwd(using sh:Environment) = sh.d
   infix def cd(f:String*)(using sh:Environment):Path = sh.cd(f*)
   given Conversion[String, Environment] = s => Environment(s)
