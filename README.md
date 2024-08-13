@@ -5,6 +5,12 @@ alascala is an integration of the Scala 3 REPL into Alacritty for daily use as a
 ## Installation
 
 1. configure ~/.config/alacritty/alacritty.toml to use Scala 3:
+```bash
+cd ~/.config/alacritty
+mv alacritty.toml config.toml
+nvim alacritty.toml
+```
+
 ```toml
 import = ["~/.config/alacritty/config.toml"]
 
@@ -12,7 +18,7 @@ import = ["~/.config/alacritty/config.toml"]
 program = "/usr/bin/scala3"
 args = ["-classpath", "/path/of/this/project/.jar"]
 ```
-2. configure the Constant.scala file of this project to use ~/.config/alacritty/config.toml as the main config when calling Alacritty:
+2. configure Constant.scala with the home of this project & to use ~/.config/alacritty/config.toml as the main config when calling Alacritty:
 ```bash
 cd /path/of/alascala
 nvim src/main/scala/Constants.scala
@@ -23,7 +29,7 @@ mv src/main/scala/Constants.scala src/main/scala/Constant.scala
 cd /path/of/alascala
 sbt package
 ```
-4. make a link from the home directory to the alascala .jar to make Step 1 above easier to maintain:
+4. make a link from the project's home directory to the alascala .jar to make Step 1 above easier to maintain:
 ```bash
 cd /path/of/alascala
 find . -name "*.jar"
@@ -61,6 +67,13 @@ and then the aliases will use that environment:
 v //opens the directory opened by the cd command in nvim
 ```
 
+open new directory:
+```scala
+^^ / ^^ / "home"
+/ / "home" <= ^
+```
+
 ## ToDo
 
-1. clean up reduntant parts of the path
+1. debug Environment class ls function
+2. integrate find, etc. commands

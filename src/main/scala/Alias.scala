@@ -8,13 +8,11 @@ import ExecutionContext.Implicits.global
 import alascala.Environment
 import Environment.{_, given}
 
-given Environment = "pwd".!!
-
 object Alias:
   def apply(cmd:String*) = Future(cmd.!)
   private object Alacritty:
     def apply(cmd:String*)(using sh:Environment) = cmd match
-      case Nil => Alias("alacritty", "--working-directory", sh.pwd, "--config-file", Constant.ALACRITTY_CONFIG)
+      case Nil => Alias("alacritty", "--working-directory", Environment.pwd, "--config-file", Constant.ALACRITTY_CONFIG)
       case _ => Alias((Seq("alacritty", "--config-file", Constant.ALACRITTY_CONFIG, "-e") ++ cmd)*)
 
   def man(s:String) = Alacritty("man", s)
