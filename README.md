@@ -60,17 +60,20 @@ packit
 Then use commands that emulate bash:
 ```scala
 cd("..")
+ls
 ```
 
 and then the aliases will use that environment:
 ```scala
-v //opens the directory opened by the cd command in nvim
+alacritty //opens in the current working directory (^) opened by the cd command in nvim
 ```
 
-open new directory:
+alternative ways to open a new directory for aliases:
 ```scala
 ^^ / ^^ / "home"
 / / "home" <= ^
+
+v(using /^)
 ```
 
 ## ToDo

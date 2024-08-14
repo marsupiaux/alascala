@@ -13,9 +13,10 @@ object Alias:
   private object Alacritty:
     def apply(cmd:String*)(using sh:Environment) = cmd match
       case Nil => Alias("alacritty", "--working-directory", Environment.pwd, "--config-file", Constant.ALACRITTY_CONFIG)
-      case _ => Alias((Seq("alacritty", "--config-file", Constant.ALACRITTY_CONFIG, "-e") ++ cmd)*)
+      case _ => Alias((Seq("alacritty", "--working-directory", sh.d.pwd, "--config-file", Constant.ALACRITTY_CONFIG, "-e") ++ cmd)*)
 
   def man(s:String) = Alacritty("man", s)
+  def sbt(using sh:Environment) = Alacritty("sbt")
   def v(using sh:Environment) = Alacritty("/usr/bin/nvim", sh.d.pwd)
   def alias = Alacritty("/usr/bin/nvim", s"${Constant.ALASCALA_HOME}/src/main/scala/Alias.scala")
   def packit = Alias("alacritty", "--working-directory", Constant.ALASCALA_HOME, "--config-file", Constant.ALACRITTY_CONFIG, "-e", "sbt", "package")

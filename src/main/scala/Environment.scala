@@ -8,7 +8,7 @@ class Path(home:String):
     f.flatMap(_.split("/"))
       .foldLeft(this){(a, f) =>
         f match
-          case "" => a
+          case "" => Environment.root.d
           case "." => a
           case ".." => a.^^
           case _ => Path(a.pwd.stripSuffix("/") + "/" + f.trim().stripPrefix("/")) match
