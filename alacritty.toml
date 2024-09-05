@@ -7,5 +7,5 @@ background = "#000000"
 opacity = 0.7
 
 [shell]
-program = "/usr/bin/scala3"
+program = "/usr/bin/scala-cli"
 args =["-classpath", "/path/to/alias/.jar"]

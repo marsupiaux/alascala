@@ -1,78 +1,66 @@
 package alascala
 
 
-class Path(home:String):
-  private var wd = home.trim()
-  def pwd = wd
-  infix def /(f:String*):Path = 
-    f.flatMap(_.split("/"))
-      .foldLeft(this){(a, f) =>
-        f match
-          case "" => Environment.root.d
-          case "." => a
-          case ".." => a.^^
-          case _ => Path(a.pwd.stripSuffix("/") + "/" + f.trim().stripPrefix("/")) match
-            case Some(p) => p
-            case None => throw Exception(s"/$f/ not found in ${a.pwd}/")
-      }
-  infix def ^ = this
-  infix def ^^ = 
-    Path("/" + wd.split("/").drop(1).dropRight(1).mkString("/")) 
-      match
-        case Some(p) => p
-        case None => this
-  def str =
-    import Console._
-    s"$WHITE${pwd}$BLUE/\\$RED$$$BLUE/$WHITE"
-  override def toString() = pwd
 
-object Path:
-  def apply(d:String):Option[Path] = 
-    import scala.sys.process.{ Process, stringToProcess }
-    if s"test -d $d".! == 0 then
-      Some(new Path(d))
-    else 
-      import Console._
-      println(s"$RED${d}/$WHITE not found by system$BLUE test -d$WHITE call")
-      None
-
-
-
-class Environment(home:Path):
+class Environment(home:AbsolutePath):
   var d = home //keep navigation history? favouritesave functionality?
 
-  infix def cd(f:String*):Environment = 
-    d = d./(f*)
-    this
   def root = 
     d = home
     this
-  def /(f:String*) = cd(f*)
-  def ^^ =
-    d = d.^^
-    this
-  def <=(sh:Environment) = sh.d = d
-  override def toString() = s"$d$$"
-  def ls(ops:String = "-ph --color=auto --indicator=classify --file-type") =
-    import scala.sys.process.{ Process, stringToProcess }
-    s"ls $ops ${d.pwd}"
-      .!!
-      .split("\n")
+  /*def / = alascala.Alias.ls(using this).filter(_.endsWith("/"))
+    .flatMap{f =>
+      Path(s"${d.pwd}${f}") match
+        case Some(p) => Seq(p)
+        case None => Nil
+    }
+  def /(f:String*):Path = d./(f*) // what about File?
+  / *def ++(i:Int) = Environment.paths += this./(i)
+  def +^(i:Int) = 
+    (this.^(i)).++
+    Environment.files* /
+  def ^ = alascala.Alias.ls(using this).filter(! _.endsWith("/"))
+    .flatMap{
+      File(_)(using this) match
+        case Some(f) => Seq(f)
+        case None => Nil
+    }
+  def ^(f:String):File =
+    File(f)(using this) match
+      case Some(file) => file
+      case None => throw Exception(s"/$f not found in ${d.pwd}")*/
+  def ^^ = d.path
+  //def <=(sh:Environment) = sh.d = d
+  def <<(i:Int) = d = Environment.paths.toSeq(i)
+  def ++ = Environment.paths += d
+  override def toString() = s"${d}\\$$/"
 
 object Environment:
-  import scala.sys.process.{ Process, stringToProcess }
-  val home:Environment = "pwd".!!
-  val root = Environment()
-  def apply(s:String = "/"):Environment = Path(s) match
-    case Some(p) => new Environment(p)
-    case None => Environment()
+  def apply(s:String = "/"):Environment =
+    alascala.Root./(s.trim) match
+      case p:alascala.AbsolutePath => new Environment(p)
+      case f:alascala.File => ???
+      //case r:alascala.Root => ???
+      case _ => ???
   def ^(using sh:Environment) = sh
   def ^^(using sh:Environment) = sh.^^
   def ^^^ = home.root
-  def / = root.root
+  def / = root.root.d
+  //def /(f:String*):AbsolutePath = Environment./.d./(f*)
   def /^ = root
-  def pwd(using sh:Environment) = sh.d.pwd
-  def cd(f:String*)(using sh:Environment):Environment = sh.cd(f*)
-  def ls(using sh:Environment) = sh.ls("-ph --color=auto --indicator=classify --file-type")
-  given Conversion[String, Environment] = s => Environment(s)
+  def /! = crash
+  def >>(i:Int) = paths -= paths.toSeq(i)
+
+  import scala.collection.mutable.SortedSet
+  val paths:SortedSet[AbsolutePath] = SortedSet()
+  val files:SortedSet[File] = SortedSet()
+  val track:SortedSet[FilePath] = SortedSet()
+  //def clean = rm all paths that don't exist
+  var filter:String => Boolean = _ => true
+
+  import scala.sys.process.{ Process, stringToProcess }
+  val home:Environment = Environment("pwd".!!)
+  val root =Environment("/")
+  val crash = root
+
   given ENV:Environment = home
