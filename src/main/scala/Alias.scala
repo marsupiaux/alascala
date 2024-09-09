@@ -27,17 +27,38 @@ object Alias:
   def alacritty = Alacritty()  
   def termite = Alias("termite")
 
-  def pwd(using sh:Environment) = sh.d.toString().trim
-  /*def cd(i:Int)(using sh:Environment) = 
-    ls.filter(_.endsWith("/"))
-      .map(s => Path(sh.d.pwd + s))(i)*/
-  /*def cd(f:String*)(using sh:Environment):Environment = 
-    sh./(f*).<=(sh)
-    sh*/
-  /*def ls(using sh:Environment):Seq[String] = 
-    sh.d./?
-      .filter(f => f.endsWith("/") || Environment.filter(f))*/
+  def wd(using sh:Environment) = sh.d
+  def pwd(using sh:Environment) = wd.toString().trim
+  def ls(using sh:Environment) = wd.ls
+  def cd(i:Int)(using sh:Environment) =
+    val p =ls(i)._2
+    if p.endsWith("/") then sh.cd(p.stripSuffix("/"))    
+    else throw Exception(s">>>$p<<< is not a directory")
+    sh
+  def sf(i:Int*)(using sh:Environment) =
+    i.foreach{j =>
+      val f =ls(j)._2
+      if ! f.endsWith("/") then 
+        File(f, sh.d).++
+    }
   def ds = Environment.paths.toSeq
-  def fs = Environment.files.filter((f:File) => Environment.filter(f.toString())).toSeq
+  def fs = Environment.files.filter((f:File) => Environment.filter(f.file)).toSeq
   def hs = Environment.track.toSeq
-  def hs(i:Int, j:Int):FilePath = Environment.track.toSeq(i)(j)
+  def hs(i:Int, j:Int):SomePath = Environment.track.toSeq(i)(j)
+  def hshow = 
+    import alascala.FilePath.display
+    Environment.track.display()
+  def hsclean =   
+    val t2 = Environment.track.clone()
+    Environment.track.clear()
+    import scala.sys.process.{ Process, stringToProcess }
+    def realPath(p:AbsolutePath):SomePath =
+      if s"test -e $p".! == 0 then p
+      else realPath(p.path)
+    t2.foreach{_ match
+      case a:AbsolutePath => realPath(a).track()
+      case r:RelativePath => r.track()
+      case _ =>
+    }
+    Environment.track
+

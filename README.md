@@ -91,7 +91,7 @@ keep references to folders for easy reference
 "/home".++(0,1)         //add files & folders by index
 fs                      //view file listing
 
-ds //view saved directories
+ds                      //view saved directories
 ^ << 0                  //goto 1st of the saved directory
 
 hs                      //view directory history
@@ -100,6 +100,8 @@ hs(2,1)                 //take the 3rd path & rm 1 segment
 
 ## ToDo
 
+0. update java.lang.Exception -> alascala.WTFRUDoing
 1. capitalise on REPL follow on functionality (may need to get that restored 1st???)
-2. integrate find, etc. commands
-3. explore & provide seemless integration with hyaoi's os package
+2. check Exists & save as File if appropriate
+3. integrate find, etc. commands
+4. explore & provide seemless integration with hyaoi's os package
