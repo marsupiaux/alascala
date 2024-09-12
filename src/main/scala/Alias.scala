@@ -44,7 +44,6 @@ object Alias:
   def ds = Environment.paths.toSeq
   def fs = Environment.files.filter((f:File) => Environment.filter(f.file)).toSeq
   def hs = Environment.track.toSeq
-  def hs(i:Int, j:Int):SomePath = Environment.track.toSeq(i)(j)
   def hshow = 
     import alascala.FilePath.display
     Environment.track.display()
@@ -53,12 +52,11 @@ object Alias:
     Environment.track.clear()
     import scala.sys.process.{ Process, stringToProcess }
     def realPath(p:AbsolutePath):SomePath =
-      if s"test -e $p".! == 0 then p
+      if s"test -e '${p.toString().trim}'".! == 0 then p
       else realPath(p.path)
     t2.foreach{_ match
       case a:AbsolutePath => realPath(a).track()
-      case r:RelativePath => r.track()
-      case _ =>
+      case r:RelativePath => r.track() //<-- do we want to clean these up?
     }
-    Environment.track
+    hshow
 

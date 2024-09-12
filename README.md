@@ -95,7 +95,7 @@ ds                      //view saved directories
 ^ << 0                  //goto 1st of the saved directory
 
 hs                      //view directory history
-hs(2,1)                 //take the 3rd path & rm 1 segment
+hs(2)(1)                 //take the 3rd path & rm 1 segment
 ```
 
 ## ToDo
