@@ -5,12 +5,13 @@ import Environment.given
 
 import scala.collection.mutable.SortedSet
 
-type SomePath = AbsolutePath|RelativePath 
-//FilePath[?]
+//type SomePath = AbsolutePath|RelativePath 
+type SomePath = FilePath[?]
 
-sealed trait FilePath[+A<:FilePath[A]]:
+sealed trait FilePath[A<:FilePath[A]]:
   def this2A():A = this match 
     case a:A => a
+    case _ => ???
   def somePath():SomePath = this match
     case a:AbsolutePath => a
     case r:RelativePath => r
@@ -22,21 +23,27 @@ sealed trait FilePath[+A<:FilePath[A]]:
   lazy val ps = path.toString() + file + "/"
   override def toString() = ps
   def toEnvironment(using sh:Environment):String  
-  def seg[B>:A](s:String, g:B):B = ???
-  def /(f:String*):A  
+  def seg(s:String, g:A):A
   def ++(i:Int*):Unit = ???
+  def /(f:String*):A =
+    f.flatMap(_.split("/", -1))
+      .foldLeft[A](this2A()){(a, f) => f match
+        case ".." => a.^^
+        case "." => a
+        case "" => ???
+        case _ => seg(f, a)
+      }.track()
+  def /(f:RelativePath):A = /:(f)
   def /:(o:RelativePath):A  
   def /:(o:SomePath):A = o match
     case r:RelativePath => /:(r)
     case _ => throw Exception(s">>>${o.toString().trim}<<< can only add RelativePath")
-  //def ^^():A = path
+  def /? = Seq[String]()
+  def * ={}
+  def ^(using sh:Environment):Environment
+  def ^^ = if file == ".." then seg("..", this2A()) else path
 
-  def <=(sh:Environment):Environment = 
-    this match
-      case a:AbsolutePath => sh.cd(a)
-      case r:RelativePath => sh.cd(r)
-      case _ => ???
-    sh
+  def ls = 0 to 100 zip(/?)
   def track():A =
     val f = toString()
     Environment.track
@@ -56,9 +63,9 @@ object FilePath:
   given some2AbsolutePath:Conversion[SomePath, AbsolutePath] = _ match
     case a:AbsolutePath => a
     case r:RelativePath => summon[Environment] /: r
-    //case f:File => ???
+    case f:File => ???
   given string2Path:Conversion[String, SomePath] = _ match
-    case s if s == "/" => Root
+    case "/" => Root
     case p if p.startsWith("/") => Root./(p.stripPrefix("/"))
     case r => Dot./(r)
   extension (ss:SortedSet[SomePath])
@@ -81,21 +88,19 @@ object FilePath:
       }
       
 
-trait RelativePath extends FilePath[RelativePath]:
+sealed trait RelativePath extends FilePath[RelativePath]:
   override val path:RelativePath
-  def toEnvironment(using sh:Environment):String = (this /: sh.d).toString()
-  //override def seg(s:String, g:RelativePath):RelativePath = Path2(s, g)
-  def ^^ = if file == ".." then Path2("..", this) else path
-  override def /(f:String*):RelativePath =
-    f.flatMap(_.split("/", -1))
-      .foldLeft[RelativePath](this){(a, f) => f match
-        case ".." => a.^^
-        case "." => a
-        case "" => ???
-        case _ => Path2(f, a)
-      }.track()
+  def toAbsolute = this /: summon[Environment].d
+  def toEnvironment(using sh:Environment):String = toAbsolute.toString()
+  override def seg(s:String, g:RelativePath):RelativePath = Path2(s, g)
+  override def /? = toAbsolute./?
+  override def * = toAbsolute.*
+  def <=(sh:Environment):Environment =
+    sh.cd(this)
+    sh
+  override def ^(using sh:Environment) = sh.cd(this) //(this /: sh.d).<=(sh)
   def /:(sh:Environment):AbsolutePath = this /: sh.d
-  def /:(o:RelativePath):RelativePath = o match
+  override def /:(o:RelativePath):RelativePath = o match
     case Dot => this2A()
     case _ => /:(o.path)./(o.file)
 
@@ -109,10 +114,10 @@ case class Path2(file:String, path:RelativePath) extends RelativePath
 
 
 
-trait AbsolutePath extends FilePath[AbsolutePath]:
+sealed trait AbsolutePath extends FilePath[AbsolutePath]:
   override val path:AbsolutePath
   def toEnvironment(using sh:Environment):String = toString()
-  //override def seg(s:String, g:AbsolutePath):AbsolutePath = Path(s, g)
+  override def seg(s:String, g:AbsolutePath):AbsolutePath = Path(s, g)
   def -- = Environment.paths -= this
   def ++ = Environment.paths += this
   override def ++(i:Int*):Unit =
@@ -122,30 +127,20 @@ trait AbsolutePath extends FilePath[AbsolutePath]:
         case s if s.endsWith("/") => Path(s.stripSuffix("/"), this).++
         case f => File(f, this).++
     }
-  def /? =
+  override def /? =
     import scala.sys.process.{ Process, stringToProcess }
     s"ls ${Constant.LSOPS} '${toString().trim}'".!!
       .split("\n")
       .filter(Environment.filter)
-  def * = /?.foreach{_ match
-    case s if s.endsWith("/") => /(s.stripSuffix("/")).++
-    case s => File(s, this).++
-  }
-  def ls = 0 to 100 zip(/?)
-  override def <=(sh:Environment):Environment =
-    sh.d = this
+  override def * = /?.foreach{_ match
+      case s if s.endsWith("/") => /(s.stripSuffix("/")).++
+      case s => File(s, this).++
+    }
+  def <=(sh:Environment):Environment =
+    sh.cd(this)
     sh
-  def ^(using sh:Environment) = <=(sh)
-  def ^^ = path
-  override def /(f:String*):AbsolutePath =
-    f.flatMap(_.split("/", -1))
-      .foldLeft[AbsolutePath](this){(a, f) => f match
-        case ".." => a.^^
-        case "." => a
-        case "" => ??? //Root
-        case _ => Path(f, a)
-      }.track()
-  def /:(o:RelativePath):AbsolutePath = o match
+  override def ^(using sh:Environment) = <=(sh)
+  override def /:(o:RelativePath):AbsolutePath = o match
     case Dot => this2A()
     case _ => /:(o.path)./(o.file)
 
@@ -162,16 +157,17 @@ case class Path(file:String, path:AbsolutePath) extends AbsolutePath with PathCm
 
 //case class LinkFile(file:String, path:FilePath) extends File(file, path)
 
+//use this class with path like movements to emulate drag&drop?
 case class File(file:String, path:AbsolutePath) extends FilePath[AbsolutePath] with FileCmd:
   override lazy val ps = path.toString() + file
   def toEnvironment(using sh:Environment):String = toString()
+  override def seg(s:String, f:AbsolutePath):AbsolutePath = ???
   def ++ = Environment.files += this
   def -- = Environment.files -= this
 
+  override def ^(using Environment) = ???
   override def /:(o:RelativePath):AbsolutePath = ???
   override def /(s:String*) = ???
-    /*val p = path./(s.flatMap(_.split("/"))*)
-    File(p.file, p.path)*///<-- ???
   override def track() = 
     Environment.files += this
     this2A()

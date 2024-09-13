@@ -71,15 +71,15 @@ Then use commands that emulate bash:
 
 and then the aliases will use that environment:
 ```scala
-alacritty               //opens in the current working directory `^` opened by the cd command in nvim
+alacritty               //opens in the current working directory `^`
 v                       //opens nvim w the files in `fs` or using `pwd`
 ```
 
 alternative ways to open a new directory for aliases:
 ```scala
-^^ <= ^
-/ / "home" <= ^
-"/home" <= ^
+hs(0) <= ^
+"/home".^
+".config/alacritty".^ 
 
 v(using /^)
 ```
@@ -102,6 +102,6 @@ hs(2)(1)                 //take the 3rd path & rm 1 segment
 
 0. update java.lang.Exception -> alascala.WTFRUDoing
 1. capitalise on REPL follow on functionality (may need to get that restored 1st???)
-2. check Exists & save as File if appropriate
+2. develop File specific functionality, such as drag & drop?
 3. integrate find, etc. commands
-4. explore & provide seemless integration with hyaoi's os package
+4. explore & provide seemless integration with haoyi's os package

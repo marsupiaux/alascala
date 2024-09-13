@@ -47,16 +47,20 @@ object Alias:
   def hshow = 
     import alascala.FilePath.display
     Environment.track.display()
-  def hsclean =   
+  def hscls(relative2:Boolean = false)(using Environment) =
     val t2 = Environment.track.clone()
     Environment.track.clear()
     import scala.sys.process.{ Process, stringToProcess }
-    def realPath(p:AbsolutePath):SomePath =
-      if s"test -e '${p.toString().trim}'".! == 0 then p
-      else realPath(p.path)
+    def realPath(r:RelativePath)(using sh:Environment):RelativePath =
+      val x =r /: sh.d
+      if s"test -d '${x.toString().trim}'".! == 0 then r
+      else realPath(r.path)
     t2.foreach{_ match
-      case a:AbsolutePath => realPath(a).track()
-      case r:RelativePath => r.track() //<-- do we want to clean these up?
+      case a:AbsolutePath => Environment.realPath(a).track()
+      case r:RelativePath => 
+        if relative2 then r.track() //<-- do we want to clean these up?
+        else realPath(r).track()
+      case _ => ???
     }
     hshow
 
