@@ -6,6 +6,7 @@ import Environment.given
 import scala.collection.mutable.SortedSet
 
 //type SomePath = AbsolutePath|RelativePath 
+//type AnyPath <: FilePath[SomePath]
 type SomePath = FilePath[?]
 
 sealed trait FilePath[A<:FilePath[A]]:
@@ -24,7 +25,7 @@ sealed trait FilePath[A<:FilePath[A]]:
   override def toString() = ps
   def toEnvironment(using sh:Environment):String  
   def seg(s:String, g:A):A
-  def ++(i:Int*):Unit = ???
+  def /(i:Int):AbsolutePath
   def /(f:String*):A =
     f.flatMap(_.split("/", -1))
       .foldLeft[A](this2A()){(a, f) => f match
@@ -35,31 +36,47 @@ sealed trait FilePath[A<:FilePath[A]]:
       }.track()
   def /(f:RelativePath):A = /:(f)
   def /:(o:RelativePath):A  
-  def /:(o:SomePath):A = o match
+  /*def /:(o:SomePath):A = o match
     case r:RelativePath => /:(r)
-    case _ => throw Exception(s">>>${o.toString().trim}<<< can only add RelativePath")
+    case _ => throw WTFRUDoing(s">>>${o.toString().trim}<<< can only add RelativePath")*/
   def /? = Seq[String]()
   def * ={}
   def ^(using sh:Environment):Environment
   def ^^ = if file == ".." then seg("..", this2A()) else path
+  def ++ ={} 
 
   def ls = 0 to 100 zip(/?)
   def track():A =
     val f = toString()
     Environment.track
       .find(_.toString().startsWith(f)) match
-        case Some(_) => Environment.track
+        case Some(_) => //Environment.track
         case None =>
           Environment.track
             .filter(p => f.startsWith(p.toString()))
             .foreach(p => Environment.track -= p)
           Environment.track += somePath()
     this2A()
+  def toString2(xp:scala.collection.mutable.Set[Any]) =
+    def str(x:A):String =
+      val sx = x match
+        case Root => "/"
+        case Dot => ""
+        case p => str(p.path) + p.file + "/"
+      if xp.contains(x) then 
+        sx.map(_ => ' ')
+          .toString()
+      else 
+        xp += x
+        sx
+    str(this2A())
+
 object FilePath:
   def apply(f:String*)(using sh:Environment):AbsolutePath = sh.d./(f*)
 
   given Ordering[SomePath] = Ordering.by(_.toString)
   given Ordering[AbsolutePath] = Ordering.by(_.toString)
+  given relative2AbsolutePath:Conversion[RelativePath, AbsolutePath] = _ /: summon[Environment].d
   given some2AbsolutePath:Conversion[SomePath, AbsolutePath] = _ match
     case a:AbsolutePath => a
     case r:RelativePath => summon[Environment] /: r
@@ -68,23 +85,18 @@ object FilePath:
     case "/" => Root
     case p if p.startsWith("/") => Root./(p.stripPrefix("/"))
     case r => Dot./(r)
+  extension (ss:Seq[SomePath])
+    def apply(i:Int*):Seq[SomePath] = i.map(ss(_))
+    def * = 
+      ss.foreach(_.++)
+      val s:SortedSet[SomePath] = SortedSet() ++ ss
+      s.display()
   extension (ss:SortedSet[SomePath])
     def display():Unit =
       import scala.collection.mutable.Set
-      val xp:Set[SomePath] = Set()
-      ss.foreach{sp =>
-        def string(x:SomePath):String =
-          val sx = x match
-            case Root => "/"
-            case Dot => "./"
-            case p => string(p.path) + p.file + "/"
-          if xp.contains(x) then 
-            sx.map(_ => ' ')
-              .toString()
-          else 
-            xp += x
-            sx
-        println(string(sp))
+      val xp:Set[Any] = Set()
+      ss.foreach{s =>        
+        println(s.toString2(xp).stripSuffix("/"))
       }
       
 
@@ -93,6 +105,7 @@ sealed trait RelativePath extends FilePath[RelativePath]:
   def toAbsolute = this /: summon[Environment].d
   def toEnvironment(using sh:Environment):String = toAbsolute.toString()
   override def seg(s:String, g:RelativePath):RelativePath = Path2(s, g)
+  override def /(i:Int):AbsolutePath = toAbsolute./(i)
   override def /? = toAbsolute./?
   override def * = toAbsolute.*
   def <=(sh:Environment):Environment =
@@ -105,7 +118,7 @@ sealed trait RelativePath extends FilePath[RelativePath]:
     case _ => /:(o.path)./(o.file)
 
 case object Dot extends RelativePath:
-  val file = ""
+  val file = "."
   val path = Dot
   override def toString() = "\n./"
   override def ^^ = Path2("..", Dot)
@@ -119,23 +132,20 @@ sealed trait AbsolutePath extends FilePath[AbsolutePath]:
   def toEnvironment(using sh:Environment):String = toString()
   override def seg(s:String, g:AbsolutePath):AbsolutePath = Path(s, g)
   def -- = Environment.paths -= this
-  def ++ = Environment.paths += this
-  override def ++(i:Int*):Unit =
-    val ls = /?
-    i.foreach{x => 
-      ls(x) match
-        case s if s.endsWith("/") => Path(s.stripSuffix("/"), this).++
-        case f => File(f, this).++
-    }
+  override def ++ = Environment.paths += this
+  override def /(i:Int):AbsolutePath = /(/?(i).stripSuffix("/"))
   override def /? =
     import scala.sys.process.{ Process, stringToProcess }
     s"ls ${Constant.LSOPS} '${toString().trim}'".!!
       .split("\n")
       .filter(Environment.filter)
   override def * = /?.foreach{_ match
-      case s if s.endsWith("/") => /(s.stripSuffix("/")).++
-      case s => File(s, this).++
-    }
+        case s if s.endsWith("/") => /(s.stripSuffix("/")).++
+        case s => File(s, this).++ // <= this includes symbolic links @
+      }
+    /*import AbsolutePath.display
+    val ss:SortedSet[SomePath] = SortedSet() ++ Environment.paths ++ Environment.files
+    ss.display()*/
   def <=(sh:Environment):Environment =
     sh.cd(this)
     sh
@@ -143,11 +153,30 @@ sealed trait AbsolutePath extends FilePath[AbsolutePath]:
   override def /:(o:RelativePath):AbsolutePath = o match
     case Dot => this2A()
     case _ => /:(o.path)./(o.file)
+object AbsolutePath:
+  extension (ss:Seq[AbsolutePath])
+    def apply(i:Int*):Seq[AbsolutePath] = i.map(ss(_))
+    def * = 
+      ss.foreach(_.++)
+      /*Environment.paths.display()
+  extension (ss:scala.collection.mutable.Set[AbsolutePath])
+    def display():Unit =
+      import scala.collection.mutable.Set
+      val xp:Set[Any] = Set()
+      ss.foreach{s =>        
+        println(s.toString2(xp))
+      }*/
+
 
 case object Root extends AbsolutePath:
   val file = "/"
   val path = Root
   override def toString() = "\n/"
+  extension (ss:Seq[AbsolutePath])
+    def apply(i:Int*):Seq[AbsolutePath] = i.map(ss(_))
+    def * = 
+      ss.foreach(_.++)
+      //Environment.paths.display()
 
 case class Path(file:String, path:AbsolutePath) extends AbsolutePath with PathCmd
 
@@ -161,30 +190,39 @@ case class Path(file:String, path:AbsolutePath) extends AbsolutePath with PathCm
 case class File(file:String, path:AbsolutePath) extends FilePath[AbsolutePath] with FileCmd:
   override lazy val ps = path.toString() + file
   def toEnvironment(using sh:Environment):String = toString()
-  override def seg(s:String, f:AbsolutePath):AbsolutePath = ???
-  def ++ = Environment.files += this
+  override def seg(s:String, f:AbsolutePath):AbsolutePath = File(s, f)
+  override def ++ = Environment.files += this
   def -- = Environment.files -= this
 
   override def ^(using Environment) = ???
   override def /:(o:RelativePath):AbsolutePath = ???
+  override def /(i:Int) = ???
   override def /(s:String*) = ???
   override def track() = 
     Environment.files += this
     this2A()
 
 object File:
-  def apply(f:String, p:Path):File =
-    val file = s"${p}${f.trim.stripPrefix("/")}"
-    import scala.sys.process.{ Process, stringToProcess }
-    if s"test -f '$file'".! == 0 then
-      val ls = f.trim.stripPrefix("/").split("/")
-      val (d,_f) = ls.splitAt(ls.length - 1)
-      new File(_f(0), p./(d*))
-    else
-      import Console._
-      println(s"$RED${file}$WHITE not found by system$BLUE test -f$WHITE call")
-      throw Exception(s"<<<${f}>>> not found in ${p}")
+  def apply(f:String):File =
+    val p:AbsolutePath =
+      if f.startsWith("/") then Root
+      else summon[Environment].d
+    val ls = f.trim.stripPrefix("/").split("/")
+    val (d,_f) = ls.splitAt(ls.length - 1)
+    File(_f(0), p./(d*))
   given Ordering[File] = Ordering.by(_.toString())
+  /*extension (ss:Seq[File])
+    def apply(i:Int*):Seq[File] = i.map(ss(_))
+    def * = 
+      ss.foreach(_.++)
+      Environment.files.display()
+  extension (ss:SortedSet[File])
+    def display():Unit =
+      import scala.collection.mutable.Set
+      val xp:Set[Any] = Set()
+      ss.foreach{s =>        
+        println(s.toString(xp).stripSuffix("/"))
+      }*/
 
 
 

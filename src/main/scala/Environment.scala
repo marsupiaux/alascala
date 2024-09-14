@@ -15,7 +15,7 @@ class Environment(home:AbsolutePath):
       d = p
     else 
       Environment.crash = Environment.realPath(p)
-      throw Exception(s">>>${p.toString().trim}<<< does not exists")
+      throw WTFRUDoing(s">>>${p.toString().trim}<<< does not exists")
     this
   def cd(p:RelativePath):Environment = cd(p /: d)
   def <<(i:Int) = d = Environment.paths.toSeq(i)
@@ -53,3 +53,8 @@ object Environment:
   var crash:AbsolutePath = Root
 
   given ENV:Environment = home
+
+//combine filters, make filters case class? need some sort of find query object that we can build
+object Filter:
+  def none = Environment.filter = _ => true
+  def endsWith(s:String):Unit = Environment.filter = _.endsWith(s)

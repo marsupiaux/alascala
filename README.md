@@ -100,8 +100,7 @@ hs(2)(1)                 //take the 3rd path & rm 1 segment
 
 ## ToDo
 
-0. update java.lang.Exception -> alascala.WTFRUDoing
 1. capitalise on REPL follow on functionality (may need to get that restored 1st???)
 2. develop File specific functionality, such as drag & drop?
-3. integrate find, etc. commands
-4. explore & provide seemless integration with haoyi's os package
+    & rethink File integration overall
+3. explore & provide seemless integration with haoyi's os package

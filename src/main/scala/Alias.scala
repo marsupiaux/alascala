@@ -33,7 +33,7 @@ object Alias:
   def cd(i:Int)(using sh:Environment) =
     val p =ls(i)._2
     if p.endsWith("/") then sh.cd(p.stripSuffix("/"))    
-    else throw Exception(s">>>$p<<< is not a directory")
+    else throw WTFRUDoing(s">>>$p<<< is not a directory")
     sh
   def sf(i:Int*)(using sh:Environment) =
     i.foreach{j =>
@@ -41,6 +41,13 @@ object Alias:
       if ! f.endsWith("/") then 
         File(f, sh.d).++
     }
+  def find = //add check with type, filters, RelativePath..? time...
+    println(Find())
+    Find().!!.split("\n")
+      .toSeq
+      .filter(Environment.filter)
+      .map(File(_))
+  def find(x:Any*):String = Find(x*)
   def ds = Environment.paths.toSeq
   def fs = Environment.files.filter((f:File) => Environment.filter(f.file)).toSeq
   def hs = Environment.track.toSeq
@@ -58,9 +65,31 @@ object Alias:
     t2.foreach{_ match
       case a:AbsolutePath => Environment.realPath(a).track()
       case r:RelativePath => 
-        if relative2 then r.track() //<-- do we want to clean these up?
-        else realPath(r).track()
+        if relative2 then realPath(r).track()
+        else r.track()
       case _ => ???
     }
     hshow
 
+//set working directory environment variable to get relative paths? 2do
+case class Find(f:Boolean, name:Option[String], dt:Option[Int]):
+  override def toString():String = Seq(
+      "find", Alias.pwd, name match
+        case Some(s) => s"-name '$s'"
+        case None => "", dt match
+        case Some(i) => s"-amin -$i"
+        case None => "",
+      "-type", if f then "f" else "d"
+    ).mkString(" ")
+  def <(t:String):Find = this //copy(dt = t)
+object Find:
+  def apply(x:Any*):String = 
+    seek = x.foldLeft(seek){(a, o) => o match
+      case s:String if s == "" => a.copy(name = None)
+      case s:String => a.copy(name = Some(s))
+      case i:Int if i == 0 => a.copy(dt = None)
+      case i:Int => a.copy(dt = Some(i))
+      case b:Boolean => a.copy(f = b)
+    }
+    seek.toString()
+  private var seek:Find = Find(true, None, None)
