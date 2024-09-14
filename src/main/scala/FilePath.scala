@@ -25,7 +25,7 @@ sealed trait FilePath[A<:FilePath[A]]:
   override def toString() = ps
   def toEnvironment(using sh:Environment):String  
   def seg(s:String, g:A):A
-  def /(i:Int):AbsolutePath
+  def /(i:Int):SomePath
   def /(f:String*):A =
     f.flatMap(_.split("/", -1))
       .foldLeft[A](this2A()){(a, f) => f match
@@ -76,8 +76,9 @@ object FilePath:
 
   given Ordering[SomePath] = Ordering.by(_.toString)
   given Ordering[AbsolutePath] = Ordering.by(_.toString)
-  given relative2AbsolutePath:Conversion[RelativePath, AbsolutePath] = _ /: summon[Environment].d
-  given some2AbsolutePath:Conversion[SomePath, AbsolutePath] = _ match
+  given Conversion[Environment, AbsolutePath] = _.d
+  given Conversion[RelativePath, AbsolutePath] = _ /: summon[Environment].d
+  given Conversion[SomePath, AbsolutePath] = _ match
     case a:AbsolutePath => a
     case r:RelativePath => summon[Environment] /: r
     case f:File => ???
@@ -105,7 +106,7 @@ sealed trait RelativePath extends FilePath[RelativePath]:
   def toAbsolute = this /: summon[Environment].d
   def toEnvironment(using sh:Environment):String = toAbsolute.toString()
   override def seg(s:String, g:RelativePath):RelativePath = Path2(s, g)
-  override def /(i:Int):AbsolutePath = toAbsolute./(i)
+  override def /(i:Int):SomePath = toAbsolute./(i)
   override def /? = toAbsolute./?
   override def * = toAbsolute.*
   def <=(sh:Environment):Environment =
@@ -133,7 +134,9 @@ sealed trait AbsolutePath extends FilePath[AbsolutePath]:
   override def seg(s:String, g:AbsolutePath):AbsolutePath = Path(s, g)
   def -- = Environment.paths -= this
   override def ++ = Environment.paths += this
-  override def /(i:Int):AbsolutePath = /(/?(i).stripSuffix("/"))
+  override def /(i:Int):SomePath = /?(i) match
+    case s if s.endsWith("/") => /(s.stripSuffix("/"))
+    case s => File(s, this)
   override def /? =
     import scala.sys.process.{ Process, stringToProcess }
     s"ls ${Constant.LSOPS} '${toString().trim}'".!!

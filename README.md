@@ -65,7 +65,7 @@ packit
 Then use commands that emulate bash:
 ```scala
 ^                       //is your current work environment
-"../scala-project" <= ^ //will take you to that place
+"../scala-project".^    //will take you to that place
 "src/main/scala".*      //now you have a handle to all the files in that relative directory
 ```
 
@@ -77,11 +77,10 @@ v                       //opens nvim w the files in `fs` or using `pwd`
 
 alternative ways to open a new directory for aliases:
 ```scala
-hs(0) <= ^
 "/home".^
-".config/alacritty".^ 
+("some/relative/path" /: "/absolute/path").^
 
-v(using /^)
+res7 <= ^
 ```
 
 keep references to folders for easy reference
@@ -95,12 +94,20 @@ ds                      //view saved directories
 ^ << 0                  //goto 1st of the saved directory
 
 hs                      //view directory history
-hs(2)(1)                 //take the 3rd path & rm 1 segment
+hs(2)(1).^              //take the 3rd path & rm 1 segment and goes to that folder
+```
+
+my standard workflow
+```scala
+"../project/path".^     //go to project path
+Find("*.scala", 60*24*7)//set query for all scala files modified in the last week
+find.*                  //collect
+v                       //open them all for editing in nvim
 ```
 
 ## ToDo
 
 1. capitalise on REPL follow on functionality (may need to get that restored 1st???)
 2. develop File specific functionality, such as drag & drop?
-    & rethink File integration overall
+    & rethink File integration overall ... it may be coming together
 3. explore & provide seemless integration with haoyi's os package
