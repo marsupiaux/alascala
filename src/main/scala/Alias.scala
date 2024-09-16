@@ -13,19 +13,31 @@ object Alias:
   def apply(cmd:String*) = Future(cmd.!)
   private object Alacritty:
     def apply(cmd:String*)(using sh:Environment) = cmd match
-      case Nil => Alias("alacritty", "--working-directory", pwd, "--config-file", Constant.ALACRITTY_CONFIG)
+      case Nil => alacritty
       case _ => Alias((Seq("alacritty", "--working-directory", pwd, "--config-file", Constant.ALACRITTY_CONFIG, "-e") ++ cmd)*)
-  def man(s:String) = Alacritty("man", s)
+  private object Sub:
+    def apply(cmd:String*) = //thanks to vitalii - https://stackoverflow.com/questions/44896739/is-it-possible-to-open-a-interactive-vim-process-by-scala-repl-shell-command
+      System.out.println(s" ${cmd.mkString(" ")} ... executing\n")
+      import java.lang.{ Process, ProcessBuilder }
+      val ps = new ProcessBuilder(cmd*)
+      ps.redirectInput(ProcessBuilder.Redirect.INHERIT)
+      ps.redirectOutput(ProcessBuilder.Redirect.INHERIT)
+      ps.redirectError(ProcessBuilder.Redirect.INHERIT)
+      val p = ps.start()
+      p.waitFor()
+      System.out.print(".")
+  def man(s:String) = Sub("man", s)
   def sbt(using sh:Environment) = Alacritty("sbt")
   def v(using sh:Environment) = fs.map(_.toString().trim()).toArray() match
     case Array() => Alacritty("/usr/bin/nvim", pwd)
     case l => Alacritty(("/usr/bin/nvim" +: l)*)
-  def alias = Alacritty("/usr/bin/nvim", s"${Constant.ALASCALA_HOME}/src/main/scala/Alias.scala")
-  def packit = Alias("alacritty", "--working-directory", Constant.ALASCALA_HOME, "--config-file", Constant.ALACRITTY_CONFIG, "-e", "sbt", "package")
-  def pacman = Alacritty("sudo", "pacman", "-Suy")
+  def alias = Sub("/usr/bin/nvim", s"${Constant.ALASCALA_HOME}/src/main/scala/Alias.scala")
+  def packit = Sub("dash", "-c", s"cd ${Constant.ALASCALA_HOME} && sbt package")
+  def pacman = Sub("sudo", "pacman", "-Suy")
   def brave = Alias("brave", "--enable-features=UzeOzonePlatform", "--ozone-platform=wayland", "--ignore-gpu-blocklist", "--enable-gpu-rasterization", "--use-gl=egl", "--gtk-version=4")
-  def alacritty = Alacritty()  
+  def alacritty = Sub("bash", "-l")
   def termite = Alias("termite")
+  def free =Sub("free")
 
   def wd(using sh:Environment) = sh.d
   def pwd(using sh:Environment) = wd.toString().trim
@@ -43,8 +55,8 @@ object Alias:
     }
   def find = //add check with type, filters, RelativePath..? time...
     println(Find())
-    Find().!!.split("\n")
-      .toSeq
+    Find().lazyLines_! //.split("\n")
+      //.toSeq
       .filter(Environment.filter)
       .map(File(_))
   def find(x:Any*):String = Find(x*)
@@ -54,42 +66,54 @@ object Alias:
   def hshow = 
     import alascala.FilePath.display
     Environment.track.display()
-  def hscls(relative2:Boolean = false)(using Environment) =
+  def hscls(relative2:Boolean)(using Environment) =
     val t2 = Environment.track.clone()
     Environment.track.clear()
     import scala.sys.process.{ Process, stringToProcess }
-    def realPath(r:RelativePath)(using sh:Environment):RelativePath =
+    def actualPath(r:RelativePath)(using sh:Environment):RelativePath =
       val x =r /: sh.d
       if s"test -d '${x.toString().trim}'".! == 0 then r
-      else realPath(r.path)
+      else actualPath(r.path)
     t2.foreach{_ match
       case a:AbsolutePath => Environment.realPath(a).track()
       case r:RelativePath => 
-        if relative2 then realPath(r).track()
+        if relative2 then actualPath(r).track()
         else r.track()
+      case _ => ???
+    }
+    Environment.track.foreach{_ match
+      case a:AbsolutePath => Environment.track -= a
+      case _ =>
+    }
+    t2.foreach{_ match
+      case a:AbsolutePath => Environment.realPath(a).track()
+      case r:RelativePath => 
       case _ => ???
     }
     hshow
 
 //set working directory environment variable to get relative paths? 2do
-case class Find(f:Boolean, name:Option[String], dt:Option[Int]):
+case class Find(file:Boolean, path:RelativePath, name:Option[String], dt:Option[Int]):
   override def toString():String = Seq(
-      "find", Alias.pwd, name match
+      "find", (path /: Alias.wd).toString().trim, 
+      name match
         case Some(s) => s"-name '$s'"
-        case None => "", dt match
+        case None => "", 
+      dt match
         case Some(i) => s"-amin -$i"
         case None => "",
-      "-type", if f then "f" else "d"
-    ).mkString(" ")
+      "-type", if file then "f" else "d"
+    ).filter(_ != "").mkString(" ")
   def <(t:String):Find = this //copy(dt = t)
 object Find:
   def apply(x:Any*):String = 
     seek = x.foldLeft(seek){(a, o) => o match
+      case p:RelativePath => a.copy(path = p)
       case s:String if s == "" => a.copy(name = None)
       case s:String => a.copy(name = Some(s))
       case i:Int if i == 0 => a.copy(dt = None)
       case i:Int => a.copy(dt = Some(i))
-      case b:Boolean => a.copy(f = b)
+      case b:Boolean => a.copy(file = b)
     }
     seek.toString()
-  private var seek:Find = Find(true, None, None)
+  private var seek:Find = Find(true, Dot, None, None)

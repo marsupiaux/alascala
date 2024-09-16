@@ -40,14 +40,17 @@ ln -s /path/of/this/project/s/jar .jar
 
 ## Usage
 
-When the shell starts up you can import the functions in Alias & Environment:
+When the shell starts up you can import the functions in Alias & Environment(I load into scala-cli via :load alias.scala which I keep in my home directory):
 
 ```scala
 import alascala.Alias._
 import alascala.Environment._
 import alascala.FilePath.stringToPath
+import alascala.{ Filter, Find }
 
 import scala.sys.process._
+
+^
 ```
 
 Add new functions with the shortcut:
@@ -94,15 +97,17 @@ ds                      //view saved directories
 ^ << 0                  //goto 1st of the saved directory
 
 hs                      //view directory history
-hs(2)(1).^              //take the 3rd path & rm 1 segment and goes to that folder
+hs(2)(1).^              //take the 1st segment of the 3rd path
 ```
 
 my standard workflow
 ```scala
 "../project/path".^     //go to project path
 Find("*.scala", 60*24*7)//set query for all scala files modified in the last week
-find.*                  //collect
-v                       //open them all for editing in nvim
+find                    //search
+res7(0,3,4).*           //collect
+
+v                       //open them for editing in nvim
 ```
 
 ## ToDo

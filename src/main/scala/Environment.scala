@@ -26,7 +26,7 @@ object Environment:
   def apply(s:String):Environment = new Environment(Root./(s.trim.stripPrefix("/")))
   def realPath(p:AbsolutePath):AbsolutePath =
     import scala.sys.process.{ Process, stringToProcess }
-    if s"test -e '${p.toString().trim}'".! == 0 then p
+    if s"test -d '${p.toString().trim}'".! == 0 then p
     else realPath(p.path)
   def ^(using sh:Environment) = sh
   def ^^(using sh:Environment) = 

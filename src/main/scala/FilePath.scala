@@ -18,9 +18,11 @@ sealed trait FilePath[A<:FilePath[A]]:
     case r:RelativePath => r
     case _ => ???
   def apply(x:Int):A = 
-    if x < 1 then this2A() else path(x - 1)
+    require(x >= 0)
+    if x < depth then path(x) else this2A()
   val file:String
   val path:A
+  val depth:Int
   lazy val ps = path.toString() + file + "/"
   override def toString() = ps
   def toEnvironment(using sh:Environment):String  
@@ -50,7 +52,7 @@ sealed trait FilePath[A<:FilePath[A]]:
     val f = toString()
     Environment.track
       .find(_.toString().startsWith(f)) match
-        case Some(_) => //Environment.track
+        case Some(p) => p(depth)
         case None =>
           Environment.track
             .filter(p => f.startsWith(p.toString()))
@@ -76,6 +78,7 @@ object FilePath:
 
   given Ordering[SomePath] = Ordering.by(_.toString)
   given Ordering[AbsolutePath] = Ordering.by(_.toString)
+  given Conversion[SomePath, java.io.File] = x => java.io.File(x.toString().trim)
   given Conversion[Environment, AbsolutePath] = _.d
   given Conversion[RelativePath, AbsolutePath] = _ /: summon[Environment].d
   given Conversion[SomePath, AbsolutePath] = _ match
@@ -109,6 +112,7 @@ sealed trait RelativePath extends FilePath[RelativePath]:
   override def /(i:Int):SomePath = toAbsolute./(i)
   override def /? = toAbsolute./?
   override def * = toAbsolute.*
+  override def ++ = toAbsolute.++
   def <=(sh:Environment):Environment =
     sh.cd(this)
     sh
@@ -121,10 +125,12 @@ sealed trait RelativePath extends FilePath[RelativePath]:
 case object Dot extends RelativePath:
   val file = "."
   val path = Dot
+  val depth = 0
   override def toString() = "\n./"
   override def ^^ = Path2("..", Dot)
 
-case class Path2(file:String, path:RelativePath) extends RelativePath
+case class Path2(file:String, path:RelativePath) extends RelativePath:
+  val depth = path.depth + 1
 
 
 
@@ -174,6 +180,7 @@ object AbsolutePath:
 case object Root extends AbsolutePath:
   val file = "/"
   val path = Root
+  val depth = 0
   override def toString() = "\n/"
   extension (ss:Seq[AbsolutePath])
     def apply(i:Int*):Seq[AbsolutePath] = i.map(ss(_))
@@ -181,7 +188,8 @@ case object Root extends AbsolutePath:
       ss.foreach(_.++)
       //Environment.paths.display()
 
-case class Path(file:String, path:AbsolutePath) extends AbsolutePath with PathCmd
+case class Path(file:String, path:AbsolutePath) extends AbsolutePath with PathCmd:
+  val depth = path.depth + 1
 
 //case class LinkPath(file:String, path:FilePath) extends Path(file, path) with FileCmd
 
@@ -191,6 +199,7 @@ case class Path(file:String, path:AbsolutePath) extends AbsolutePath with PathCm
 
 //use this class with path like movements to emulate drag&drop?
 case class File(file:String, path:AbsolutePath) extends FilePath[AbsolutePath] with FileCmd:
+  val depth = path.depth + 1
   override lazy val ps = path.toString() + file
   def toEnvironment(using sh:Environment):String = toString()
   override def seg(s:String, f:AbsolutePath):AbsolutePath = File(s, f)
