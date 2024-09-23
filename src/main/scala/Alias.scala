@@ -79,7 +79,6 @@ object Alias:
       case r:RelativePath => 
         if relative2 then actualPath(r).track()
         else r.track()
-      case _ => ???
     }
     Environment.track.foreach{_ match
       case a:AbsolutePath => Environment.track -= a
@@ -88,7 +87,6 @@ object Alias:
     t2.foreach{_ match
       case a:AbsolutePath => Environment.realPath(a).track()
       case r:RelativePath => 
-      case _ => ???
     }
     hshow
 

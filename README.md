@@ -112,6 +112,7 @@ v                       //open them for editing in nvim
 
 ## ToDo
 
+0. Dot.path = ??? <- !?!, scala throws parameter error without checking for matching method in derivatives...?
 1. capitalise on REPL follow on functionality (may need to get that restored 1st???)
 2. develop File specific functionality, such as drag & drop?
     & rethink File integration overall ... it may be coming together
