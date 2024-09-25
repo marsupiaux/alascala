@@ -11,8 +11,8 @@ trait PathSeg[+A<:PathSeg[A]]:
 //use this class with path like movements to emulate drag&drop?
 case class File(file:String, path:AbsolutePath) extends PathSeg[AbsolutePath]:
   override lazy val ps = path.toString() + file
-  override def ++ = Environment.files += this
-  def -- = Environment.files -= this
+  override def ++ = Environment.files = Environment.files + this
+  def -- = Environment.files = Environment.files - this
 object File:
   def apply(f:String):File =
     val p:AbsolutePath =

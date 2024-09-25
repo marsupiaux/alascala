@@ -19,7 +19,7 @@ class Environment(home:AbsolutePath):
     this
   def cd(p:RelativePath):Environment = cd(p /: d)
   def <<(i:Int) = d = Environment.paths.toSeq(i)
-  def ++ = Environment.paths += d
+  def ++ = Environment.paths = Environment.paths + d
   override def toString() = s"${d}\\$$/"
 
 object Environment:
@@ -38,13 +38,13 @@ object Environment:
   def /! = crash
   def >>(i:Int) = 
     val p = paths.toSeq(i)
-    paths -= p
+    paths = paths - p
     p
 
-  import scala.collection.mutable.SortedSet
-  val paths:SortedSet[AbsolutePath] = SortedSet()
-  val files:SortedSet[File] = SortedSet()
-  val track:SortedSet[SomePath] = SortedSet()
+  import scala.collection.immutable.SortedSet
+  var paths:SortedSet[AbsolutePath] = SortedSet.empty()
+  var files:SortedSet[File] = SortedSet.empty()
+  var track:SortedSet[SomePath] = SortedSet.empty()
   var filter:String => Boolean = _ => true
 
   import scala.sys.process.{ Process, stringToProcess }

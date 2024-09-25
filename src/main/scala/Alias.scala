@@ -20,6 +20,7 @@ object Alias:
       System.out.println(s" ${cmd.mkString(" ")} ... executing\n")
       import java.lang.{ Process, ProcessBuilder }
       val ps = new ProcessBuilder(cmd*)
+      ps.directory(wd)
       ps.redirectInput(ProcessBuilder.Redirect.INHERIT)
       ps.redirectOutput(ProcessBuilder.Redirect.INHERIT)
       ps.redirectError(ProcessBuilder.Redirect.INHERIT)
@@ -67,27 +68,20 @@ object Alias:
     import alascala.FilePath.display
     Environment.track.display()
   def hscls(relative2:Boolean)(using Environment) =
-    val t2 = Environment.track.clone()
-    Environment.track.clear()
+    import scala.collection.immutable.SortedSet
     import scala.sys.process.{ Process, stringToProcess }
+    var t:SortedSet[SomePath] = SortedSet.empty()
     def actualPath(r:RelativePath)(using sh:Environment):RelativePath =
       val x =r /: sh.d
       if s"test -d '${x.toString().trim}'".! == 0 then r
       else actualPath(r.path)
-    t2.foreach{_ match
-      case a:AbsolutePath => Environment.realPath(a).track()
-      case r:RelativePath => 
-        if relative2 then actualPath(r).track()
-        else r.track()
-    }
     Environment.track.foreach{_ match
-      case a:AbsolutePath => Environment.track -= a
-      case _ =>
-    }
-    t2.foreach{_ match
-      case a:AbsolutePath => Environment.realPath(a).track()
+      case a:AbsolutePath => t = t + Environment.realPath(a)
       case r:RelativePath => 
+        if relative2 then t = t + actualPath(r)
+        else t = t + r
     }
+    Environment.track = t
     hshow
 
 //set working directory environment variable to get relative paths? 2do

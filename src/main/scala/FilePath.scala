@@ -3,7 +3,7 @@ package alascala
 import alascala.Environment
 import Environment.given
 
-import scala.collection.mutable.SortedSet
+import scala.collection.immutable.SortedSet
 
 type SomePath = FilePath[?]
 type AbSeg = PathSeg[AbsolutePath]
@@ -105,8 +105,8 @@ sealed trait AbsolutePath extends FilePath[AbsolutePath]:
   override val path:AbsolutePath
   override def seg[B>:AbsolutePath](s:String, g:B):AbsolutePath = g match
     case a:AbsolutePath => Path(s, a)
-  def -- = Environment.paths -= this
-  override def ++ = Environment.paths += this
+  def -- = Environment.paths = Environment.paths - this
+  override def ++ = Environment.paths = Environment.paths + this
   override def / = /?.map{_ match
       case s if s.endsWith("/") => super./(s.stripSuffix("/")) //why super???
       case s => File(s, this)
