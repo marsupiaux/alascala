@@ -6,11 +6,19 @@ trait PathSeg[+A<:PathSeg[A]]:
   val path:A
   lazy val ps = path.toString() + file + "/"
   override def toString() = ps
+  def pretty = toString().trim
+  def f:File = throw WTFRUDoing(s">>>${pretty}<<< is not a File")
+  def d:AbsolutePath = throw WTFRUDoing(s">>>${pretty}<<< is not an AbsolutePath")
   def ++ ={} 
 
 //use this class with path like movements to emulate drag&drop?
 case class File(file:String, path:AbsolutePath) extends PathSeg[AbsolutePath]:
   override lazy val ps = path.toString() + file
+  override def f = this
+  def >> = 
+    val j:java.io.File = this
+    import scala.sys.process._
+    Process.cat(j)
   override def ++ = Environment.files = Environment.files + this
   def -- = Environment.files = Environment.files - this
 object File:

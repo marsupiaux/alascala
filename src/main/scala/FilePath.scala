@@ -62,7 +62,7 @@ sealed trait FilePath[+A<:FilePath[A]] extends PathSeg[A]:
 object FilePath:
   given Ordering[SomePath] = Ordering.by(_.toString)
   given Ordering[AbsolutePath] = Ordering.by(_.toString)
-  given Conversion[AbSeg, java.io.File] = x => java.io.File(x.toString().trim)
+  given Conversion[AbSeg, java.io.File] = x => java.io.File(x.pretty)
   given string2Path:Conversion[String, SomePath] = _ match
     case "/" => Root
     case p if p.startsWith("/") => Root./(p.stripPrefix("/"))
@@ -105,6 +105,7 @@ sealed trait AbsolutePath extends FilePath[AbsolutePath]:
   override val path:AbsolutePath
   override def seg[B>:AbsolutePath](s:String, g:B):AbsolutePath = g match
     case a:AbsolutePath => Path(s, a)
+  override def d = this
   def -- = Environment.paths = Environment.paths - this
   override def ++ = Environment.paths = Environment.paths + this
   override def / = /?.map{_ match
@@ -113,7 +114,7 @@ sealed trait AbsolutePath extends FilePath[AbsolutePath]:
     }
   override def /? =
     import scala.sys.process.{ Process, stringToProcess }
-    s"ls ${Constant.LSOPS} '${toString().trim}'".!!
+    s"ls ${Constant.LSOPS} '$pretty'".!!
       .split("\n")
       .filter(Environment.filter)
   override def * = /?.foreach{_ match

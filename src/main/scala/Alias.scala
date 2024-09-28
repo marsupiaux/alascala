@@ -29,7 +29,7 @@ object Alias:
       System.out.print(".")
   def man(s:String) = Sub("man", s)
   def sbt(using sh:Environment) = Alacritty("sbt")
-  def v(using sh:Environment) = fs.map(_.toString().trim()).toArray() match
+  def v(using sh:Environment) = fs.map(_.pretty).toArray() match
     case Array() => Alacritty("/usr/bin/nvim", pwd)
     case l => Alacritty(("/usr/bin/nvim" +: l)*)
   def alias = Sub("/usr/bin/nvim", s"${Constant.ALASCALA_HOME}/src/main/scala/Alias.scala")
@@ -41,19 +41,19 @@ object Alias:
   def free =Sub("free")
 
   def wd(using sh:Environment) = sh.d
-  def pwd(using sh:Environment) = wd.toString().trim
+  def pwd(using sh:Environment) = wd.pretty
   def ls(using sh:Environment) = wd.ls
   def cd(i:Int)(using sh:Environment) =
     val p =ls(i)._2
     if p.endsWith("/") then sh.cd(p.stripSuffix("/"))    
     else throw WTFRUDoing(s">>>$p<<< is not a directory")
     sh
-  def sf(i:Int*)(using sh:Environment) =
+  /*def sf(i:Int*)(using sh:Environment) =
     i.foreach{j =>
       val f =ls(j)._2
       if ! f.endsWith("/") then 
         File(f, sh.d).++
-    }
+    }*/
   def find = //add check with type, filters, RelativePath..? time...
     println(Find())
     Find().lazyLines_! //.split("\n")
@@ -73,7 +73,7 @@ object Alias:
     var t:SortedSet[SomePath] = SortedSet.empty()
     def actualPath(r:RelativePath)(using sh:Environment):RelativePath =
       val x =r /: sh.d
-      if s"test -d '${x.toString().trim}'".! == 0 then r
+      if s"test -d '${x.pretty}'".! == 0 then r
       else actualPath(r.path)
     Environment.track.foreach{_ match
       case a:AbsolutePath => t = t + Environment.realPath(a)
@@ -87,7 +87,7 @@ object Alias:
 //set working directory environment variable to get relative paths? 2do
 case class Find(file:Boolean, path:RelativePath, name:Option[String], dt:Option[Int]):
   override def toString():String = Seq(
-      "find", (path /: Alias.wd).toString().trim, 
+      "find", (path /: Alias.wd).pretty, 
       name match
         case Some(s) => s"-name '$s'"
         case None => "", 

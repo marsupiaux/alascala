@@ -11,11 +11,11 @@ class Environment(home:AbsolutePath):
   def cd(s:String):Environment = cd(d./(s))
   def cd(p:AbsolutePath):Environment = 
     import scala.sys.process.{ Process, stringToProcess }
-    if s"test -d '${p.toString().trim}'".! == 0 then
+    if s"test -d '${p.pretty}'".! == 0 then
       d = p
     else 
       Environment.crash = Environment.realPath(p)
-      throw WTFRUDoing(s">>>${p.toString().trim}<<< does not exists")
+      throw WTFRUDoing(s">>>${p.pretty}<<< does not exists")
     this
   def cd(p:RelativePath):Environment = cd(p /: d)
   def <<(i:Int) = d = Environment.paths.toSeq(i)
@@ -26,7 +26,7 @@ object Environment:
   def apply(s:String):Environment = new Environment(Root./(s.trim.stripPrefix("/")))
   def realPath(p:AbsolutePath):AbsolutePath =
     import scala.sys.process.{ Process, stringToProcess }
-    if s"test -d '${p.toString().trim}'".! == 0 then p
+    if s"test -d '${p.pretty}'".! == 0 then p
     else realPath(p.path)
   def ^(using sh:Environment) = sh
   def ^^(using sh:Environment) = 

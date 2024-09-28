@@ -45,7 +45,8 @@ When the shell starts up you can import the functions in Alias & Environment(I l
 ```scala
 import alascala.Alias._
 import alascala.Environment._
-import alascala.FilePath.stringToPath
+import alascala.FilePath.given
+import alascala.AbsolutePath.given
 import alascala.{ Filter, Find }
 
 import scala.sys.process._
