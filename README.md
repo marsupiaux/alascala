@@ -87,7 +87,7 @@ alternative ways to open a new directory for aliases:
 res7 <= ^
 ```
 
-keep references to folders for easy reference
+keep references to folders for easy reference:
 ```scala
 ^.++
 "/home"./?              //show listing
@@ -101,7 +101,7 @@ hs                      //view directory history
 hs(2)(1).^              //take the 1st segment of the 3rd path
 ```
 
-my standard workflow
+my standard workflow:
 ```scala
 "../project/path".^     //go to project path
 Find("*.scala", 60*24*7)//set query for all scala files modified in the last week
@@ -109,6 +109,15 @@ find                    //search
 res7(0,3,4).*           //collect
 
 v                       //open them for editing in nvim
+```
+
+& something i'd forgotten about:
+```scala
+script                  //define process that you want to introduce into pipeline
+load                    //compile code in place
+val fin = f.>>          //use source file as input stream
+val pip = fin #| ps("process") //define pipeline as a process
+pip.!!                  //run new pipeline w/o leaving shell (as necessary after alias/packit)
 ```
 
 ## ToDo

@@ -54,6 +54,9 @@ object Alias:
       if ! f.endsWith("/") then 
         File(f, sh.d).++
     }*/
+  def load = Process(Seq("scalac3", s"${Constant.ALASCALA_HOME}/src/main/scala/Script.scala"), Constant.ALASCALA_FILE).!!
+  def script = Sub("/usr/bin/nvim", s"${Constant.ALASCALA_HOME}/src/main/scala/Script.scala")
+  def ps(s:String*) = Process("scala3" +: s, Constant.ALASCALA_FILE)
   def find = //add check with type, filters, RelativePath..? time...
     println(Find())
     Find().lazyLines_! //.split("\n")
