@@ -2,7 +2,9 @@ package alascala
 
 import alascala.Environment
 import Environment.given
+import Alias.Sub
 
+import scala.sys.process.{ Process, stringToProcess }
 import scala.collection.immutable.SortedSet
 
 type SomePath = FilePath[?]
@@ -10,10 +12,10 @@ type AbSeg = PathSeg[AbsolutePath]
 
 sealed trait FilePath[+A<:FilePath[A]] extends PathSeg[A]:
   this:A =>
-  val depth:Int = 0
-  def apply(x:Int):A = 
+  override def apply(x:Int):A = 
     require(x >= 0)
     if x < depth then path(x) else this
+  val depth:Int = 0
   def seg[B>:A](s:String, g:B):A
   def / = Seq[AbSeg]()
   def /(f:String*):A =
@@ -21,7 +23,7 @@ sealed trait FilePath[+A<:FilePath[A]] extends PathSeg[A]:
       .foldLeft[A](this){(a, f) => f match
         case ".." => a.^^
         case "." => a
-        case "" => ???
+        case "" => ??? //throw WTFRUDoing(s"$a >>>$f<<<")
         case _ => seg(f, a)
       }.track()
   //def /(f:RelativePath):A = /:(f)
@@ -29,11 +31,13 @@ sealed trait FilePath[+A<:FilePath[A]] extends PathSeg[A]:
     case Dot => this
     case _ => /:(o.path)./(o.file)
   def /? = Seq[String]()
-  def ^(using sh:Environment):Environment
   def ^^ = if file == ".." then seg("..", this) else path
+  def ^(using sh:Environment) = sh.cd(this)
   def * ={}
 
   def ls = 0 to 100 zip(/?)
+  override def exists =
+    s"test -d $pretty".! == 0
   def track():A =
     val f = toString()
     Environment.track
@@ -63,13 +67,30 @@ object FilePath:
   given Ordering[SomePath] = Ordering.by(_.toString)
   given Ordering[AbsolutePath] = Ordering.by(_.toString)
   given Conversion[AbSeg, java.io.File] = x => java.io.File(x.pretty)
-  given string2Path:Conversion[String, SomePath] = _ match
+  /*given string2AbsolutePath:Conversion[String, AbsolutePath] =
     case "/" => Root
     case p if p.startsWith("/") => Root./(p.stripPrefix("/"))
+  given string2RelativePath:Conversion[String, RelativePath] =
+    case s if ! s.startsWith("/") => Dot./(s)*/
+  given string2Path:Conversion[String, SomePath] = _ match
+    case "/" => Root
+    case p if p.startsWith("/") => Root./(p.stripPrefix("/").stripSuffix("/"))
     case r => Dot./(r)
+  extension (f:AbSeg)
+    def ++(using sh:Environment) = f match
+      case a:AbsolutePath => sh.paths = sh.paths + a
+      case f:File => sh.files = sh.files + f
+    def --(using sh:Environment) = f match
+      case a:AbsolutePath => sh.paths = sh.paths - a
+      case f:File => sh.files = sh.files - f
   extension (ss:Seq[AbSeg])
     def apply(i:Int*):Seq[AbSeg] = i.map(ss(_))
     def * = ss.foreach{ _.++ }
+  extension (ss:List[SomePath])
+    def rm(a:SomePath):List[SomePath] = ss match
+      case Nil => Nil
+      case p :: l if a == p => l
+      case d :: l => d :: l.rm(a)
   extension (ss:SortedSet[SomePath])
     def display():Unit =
       import scala.collection.mutable.Set
@@ -77,18 +98,17 @@ object FilePath:
       ss.foreach{s =>        
         println(s.toString2(xp).stripSuffix("/"))
       }
-      
+
 
 sealed trait RelativePath extends FilePath[RelativePath]:
   override val path:RelativePath
   override def seg[B>:RelativePath](s:String, g:B):RelativePath = g match
     case r:RelativePath => Path2(s, r)
-  def <=(sh:Environment):Environment =
-    sh.cd(this)
-    sh
-  override def ^(using sh:Environment) = sh.cd(this) //(this /: sh.d).<=(sh)
+  override def r = this
+  def <=(sh:Environment):Environment = sh.cd(this)
   override def / = (this /: summon[Environment].d)./ //2do...won't consider derivatives until i pass a incompatible parameter (nothing ignored)
-  def /:(sh:Environment):AbsolutePath = this /: sh.d
+  override def /? = (this /: summon[Environment].d)./?
+  //def /:(sh:Environment):AbsolutePath = this /: sh.d
 
 case object Dot extends RelativePath:
   override val file = "."
@@ -106,28 +126,28 @@ sealed trait AbsolutePath extends FilePath[AbsolutePath]:
   override def seg[B>:AbsolutePath](s:String, g:B):AbsolutePath = g match
     case a:AbsolutePath => Path(s, a)
   override def d = this
-  def -- = Environment.paths = Environment.paths - this
-  override def ++ = Environment.paths = Environment.paths + this
+  override def f =
+    if s"test -d $pretty".! == 0 then
+      super.f //<<<this is a little brutal ... must be a more elegant way
+    else File(file, path)
   override def / = /?.map{_ match
       case s if s.endsWith("/") => super./(s.stripSuffix("/")) //why super???
       case s => File(s, this)
     }
   override def /? =
-    import scala.sys.process.{ Process, stringToProcess }
-    s"ls ${Constant.LSOPS} '$pretty'".!!
+    f"ls ${Constant.LSOPS} '$pretty'".!!
       .split("\n")
       .filter(Environment.filter)
-  override def * = /?.foreach{_ match
-        case s if s.endsWith("/") => seg(s.stripSuffix("/"), this).++
-        case s => File(s, this).++ // <= this includes symbolic links @
-      }
+  override def * = /.foreach{ _.++ }// <= this includes symbolic links @
     /*import AbsolutePath.display
     val ss:SortedSet[SomePath] = SortedSet() ++ Environment.paths ++ Environment.files
     ss.display()*/
-  def <=(sh:Environment):Environment =
-    sh.cd(this)
-    sh
-  override def ^(using sh:Environment) = <=(sh)
+  def <=(sh:Environment):Environment = sh.cd(this)
+  def mkdir:AbsolutePath = 
+    f"mkdir -p '$pretty'".!
+    this
+  def rm_r = Sub("rm", "-r", pretty)
+  def rm_fr = Sub("rm", "-fr", pretty)
 object AbsolutePath:
   given Conversion[SomePath, AbsolutePath] = _ match
     case a:AbsolutePath => a
@@ -136,8 +156,8 @@ object AbsolutePath:
   given Conversion[RelativePath, AbsolutePath] = _ /: summon[Environment].d
   extension (ss:Seq[AbsolutePath])
     def apply(i:Int*):Seq[AbsolutePath] = i.map(ss(_))
-    def * = 
-      ss.foreach(_.++)
+    def * = ss.foreach(_.++)
+    def /(i:Int)(using sh:Environment) = ss(i) <= sh
       /*Environment.paths.display()
   extension (ss:scala.collection.mutable.Set[AbsolutePath])
     def display():Unit =

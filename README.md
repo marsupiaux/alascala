@@ -77,6 +77,8 @@ and then the aliases will use that environment:
 ```scala
 alacritty               //opens in the current working directory `^`
 v                       //opens nvim w the files in `fs` or using `pwd`
+ls
+^ / 3                   //will go to the 3rd entry in `ls`, you can also named the "directory" instead
 ```
 
 alternative ways to open a new directory for aliases:
@@ -95,10 +97,10 @@ keep references to folders for easy reference:
 fs                      //view file listing
 
 ds                      //view saved directories
-^ << 0                  //goto 1st of the saved directory
+^ << 0                  //goto 1st of the saved directories
 
 hs                      //view directory history
-hs(2)(1).^              //take the 1st segment of the 3rd path
+hs(2)(1).^              //take the 1st segment of the 3rd path & go to it
 ```
 
 my standard workflow:
@@ -120,6 +122,16 @@ val pip = fin #| ps("process") //define pipeline as a process
 pip.!!                  //run new pipeline w/o leaving shell (as necessary after alias/packit)
 ```
 
+finally! project warp
+```scala
+^^^                     //give you a listing of available projects or go straight to it if there's only 1
+^^^(0).^                //go to it
+lock                    //save current location as a project with fs & ds
+load                    //add fs & ds from current location if you at a project's home
+zero                    //clear fs & ds to allow for clean load
+boom                    //rm all traces of the this project ...
+```
+
 ## ToDo
 
 0. Dot.path = ??? <- !?!, scala throws parameter error without checking for matching method in derivatives...?
@@ -127,3 +139,4 @@ pip.!!                  //run new pipeline w/o leaving shell (as necessary after
 2. develop File specific functionality, such as drag & drop?
     & rethink File integration overall ... it may be coming together
 3. explore & provide seemless integration with haoyi's os package
+...
